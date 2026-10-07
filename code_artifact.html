@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>氣體定律虛擬實驗室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .digital-font {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+        }
+
+        /* 波以耳定律的滑桿樣式 (藍色主題) */
+        #volume-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        #volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        #volume-slider::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        #volume-slider:focus { outline: none; }
+
+        /* 查理定律的滑桿樣式 (漸層溫度主題) */
+        #temp-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        #temp-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #ef4444;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        #temp-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+        #temp-slider::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: linear-gradient(to right, #3b82f6, #ef4444);
+            border-radius: 4px;
+        }
+        #temp-slider:focus { outline: none; }
+
+        /* 溫度計與火焰的發光效果 */
+        .glow-hot { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)); }
+        .glow-cold { filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6)); }
+
+        /* 分頁切換過場動畫 */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-x-hidden">
+
+    <nav class="bg-slate-800 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-xl font-black tracking-wider flex items-center gap-2">
+                        <span>🧪</span> 氣體定律虛擬實驗室
+                    </span>
+                </div>
+                <!-- 導覽按鈕 -->
+                <div class="flex space-x-2 md:space-x-4">
+                    <button onclick="switchTab('home')" id="nav-home" class="px-3 py-2 rounded-md text-sm font-bold bg-slate-900 text-white transition-colors">首頁</button>
+                    <button onclick="switchTab('boyle')" id="nav-boyle" class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">波以耳定律</button>
+                    <button onclick="switchTab('charles')" id="nav-charles" class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">查理定律</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-8">
+        
+        <main id="view-home" class="max-w-6xl mx-auto w-full fade-in block">
+            <div class="text-center mb-12 mt-8">
+                <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4">探索氣體的秘密</h1>
+                <p class="text-lg text-slate-600 max-w-2xl mx-auto">歡迎來到虛擬氣體實驗室。在這裡，你可以安全地調整壓力、體積與溫度，透過視覺化的互動與實時圖表，親自驗證經典的物理化學定律。</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <!-- 波以耳定律卡片 -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow cursor-pointer transform hover:-translate-y-1 transition-transform" onclick="switchTab('boyle')">
+                    <div class="h-32 bg-blue-500 flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==')]"></div>
+                        <h2 class="text-3xl font-black text-white relative z-10 drop-shadow-md">🎈 波以耳定律</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-slate-600 mb-4 h-12">探討在**定溫**下，氣體**體積**與**壓力**成反比的關係。</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded">恆定變因：溫度 (T), 莫耳數 (n)</span>
+                            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">公式：P₁V₁ = P₂V₂</span>
+                        </div>
+                        <button class="w-full py-2 bg-blue-50 text-blue-600 font-bold rounded-lg hover:bg-blue-100 transition-colors">進入實驗室 →</button>
+                    </div>
+                </div>
+
+                <!-- 查理定律卡片 -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow cursor-pointer transform hover:-translate-y-1 transition-transform" onclick="switchTab('charles')">
+                    <div class="h-32 bg-red-500 flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-blue-500/50 to-red-500/50 mix-blend-overlay"></div>
+                        <h2 class="text-3xl font-black text-white relative z-10 drop-shadow-md">🌡️ 查理定律</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-slate-600 mb-4 h-12">探討在**定壓**下，氣體**體積**與**絕對溫度**成正比的關係。</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded">恆定變因：壓力 (P), 莫耳數 (n)</span>
+                            <span class="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">公式：V₁/T₁ = V₂/T₂</span>
+                        </div>
+                        <button class="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-colors">進入實驗室 →</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="view-boyle" class="max-w-6xl mx-auto w-full hidden fade-in">
+            <header class="text-center mb-6">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">🎈 波以耳定律互動實驗室</h2>
+                <p class="text-slate-600">定溫、定量的氣體，其體積與壓力成反比（$P_1V_1 = P_2V_2$）</p>
+            </header>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 波以耳操作區 -->
+                <section class="bg-white rounded-2xl shadow-lg p-6 flex flex-col justify-between border-t-4 border-blue-400">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 mb-4 inline-block">🧪 實驗操作區</h3>
+                        <p class="text-sm text-slate-500 mb-6">請拖拉下方滑桿或直接拖曳活塞桿，改變體積，觀察壓力變化。</p>
+                        
+                        <div class="w-full flex justify-center mb-8 relative select-none">
+                            <svg id="syringe-svg" viewBox="0 0 450 150" class="w-full max-w-md drop-shadow-md">
+                                <path d="M 50 65 L 30 65 L 30 85 L 50 85 Z" fill="#9ca3af" stroke="#4b5563" stroke-width="2"/>
+                                <circle cx="30" cy="45" r="18" fill="white" stroke="#4b5563" stroke-width="2"/>
+                                <path id="gauge-needle" d="M 30 45 L 30 32" stroke="red" stroke-width="2" transform="rotate(-45 30 45)"/>
+                                <rect x="50" y="35" width="300" height="80" fill="rgba(255, 255, 255, 0.8)" stroke="#4b5563" stroke-width="4" rx="4"/>
+                                <rect id="gas-area" x="52" y="37" width="200" height="76" fill="rgba(191, 219, 254, 0.6)" rx="2"/>
+                                <g id="boyle-particles-group"></g>
+                                <g id="plunger-group" style="cursor: ew-resize;" class="hover:opacity-80 transition-opacity">
+                                    <rect id="plunger-head" x="252" y="37" width="15" height="76" fill="#4b5563" rx="2"/>
+                                    <rect id="plunger-rod" x="267" y="65" width="180" height="20" fill="#9ca3af" stroke="#4b5563" stroke-width="2"/>
+                                    <rect id="plunger-handle" x="420" y="45" width="15" height="60" fill="#4b5563" rx="4"/>
+                                    <text id="drag-hint" x="350" y="25" fill="#ef4444" font-size="14" font-weight="bold" text-anchor="middle" class="animate-pulse">← 拖曳活塞桿 →</text>
+                                </g>
+                                <path d="M 100 115 L 100 125 M 150 115 L 150 125 M 200 115 L 200 125 M 250 115 L 250 125 M 300 115 L 300 125 M 350 115 L 350 125" stroke="#9ca3af" stroke-width="2"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="font-bold text-slate-700">調整體積 (V)</label>
+                                <span class="text-blue-600 font-bold"><span id="volume-display">20.0</span> mL</span>
+                            </div>
+                            <input type="range" id="volume-slider" min="5" max="40" step="0.5" value="20">
+                            <div class="flex justify-between text-xs text-slate-400 mt-1">
+                                <span>5 mL (壓縮)</span>
+                                <span>40 mL (膨脹)</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+                            <div class="text-slate-600 font-medium">環境設定</div>
+                            <div class="flex space-x-2">
+                                <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">氣體：定量</span>
+                                <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded">溫度：定溫</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <!-- 波以耳圖表區 -->
+                <section class="flex flex-col gap-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white rounded-2xl shadow-lg p-5 border-l-4 border-blue-500 flex flex-col justify-center">
+                            <h3 class="text-slate-500 text-sm font-bold mb-1">目前體積 (V)</h3>
+                            <div class="flex items-end">
+                                <span id="meter-v" class="digital-font text-4xl text-blue-600 mr-2">20.0</span><span class="text-slate-400 text-sm mb-1">mL</span>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-lg p-5 border-l-4 border-red-500 flex flex-col justify-center">
+                            <h3 class="text-slate-500 text-sm font-bold mb-1">氣體壓力 (P)</h3>
+                            <div class="flex items-end">
+                                <span id="meter-p" class="digital-font text-4xl text-red-600 mr-2">1.00</span><span class="text-slate-400 text-sm mb-1">atm</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 text-white rounded-2xl shadow-lg p-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-slate-300 text-xs font-bold">定律驗證 (P × V = k)</h3>
+                            <div class="text-lg font-mono mt-1">
+                                <span id="calc-p" class="text-red-300">1.00</span> × <span id="calc-v" class="text-blue-300">20.0</span> = <span id="calc-k" class="text-yellow-400 font-bold text-2xl ml-2">20.0</span>
+                            </div>
+                        </div>
+                        <div class="text-right text-slate-400 text-sm">常數 k 應保持不變</div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-lg p-6 flex-1 min-h-[250px] flex flex-col">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">📊 P-V 關係圖 (壓力-體積)</h3>
+                        <div class="relative w-full flex-1">
+                            <canvas id="pvChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <main id="view-charles" class="max-w-6xl mx-auto w-full hidden fade-in">
+            <header class="text-center mb-6">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">🌡️ 查理定律互動實驗室</h2>
+                <p class="text-slate-600">定壓、定量的氣體，其體積與絕對溫度成正比（$V_1/T_1 = V_2/T_2$）</p>
+            </header>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 查理操作區 -->
+                <section class="bg-white rounded-2xl shadow-lg p-6 flex flex-col justify-between border-t-4 border-red-400">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800 border-b-2 border-red-500 pb-2 mb-4 inline-block">🔥 實驗操作區</h3>
+                        <p class="text-sm text-slate-500 mb-6">請拖拉溫度滑桿，改變系統溫度，觀察氣體體積與粒子運動狀態的變化。</p>
+                        
+                        <div class="w-full flex justify-center mb-8 relative select-none">
+                            <svg id="experiment-svg" viewBox="0 0 400 350" class="w-full max-w-sm drop-shadow-md">
+                                <defs>
+                                    <linearGradient id="fire-gradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                                        <stop offset="0%" stop-color="#ef4444" />
+                                        <stop offset="50%" stop-color="#f59e0b" />
+                                        <stop offset="100%" stop-color="#fcd34d" stop-opacity="0" />
+                                    </linearGradient>
+                                    <linearGradient id="ice-gradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                                        <stop offset="0%" stop-color="#3b82f6" />
+                                        <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.2" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M150 50 L150 250 M170 50 L170 250 M190 50 L190 250 M210 50 L210 250 M230 50 L230 250" stroke="#f1f5f9" stroke-width="1"/>
+                                <path d="M150 50 L250 50 M150 90 L250 90 M150 130 L250 130 M150 170 L250 170 M150 210 L250 210 M150 250 L250 250" stroke="#f1f5f9" stroke-width="1"/>
+                                <g id="thermometer" transform="translate(60, 40)">
+                                    <rect x="-10" y="0" width="20" height="200" rx="10" fill="white" stroke="#64748b" stroke-width="3"/>
+                                    <circle cx="0" cy="210" r="20" fill="white" stroke="#64748b" stroke-width="3"/>
+                                    <rect x="-4" y="10" width="8" height="190" rx="4" fill="#f1f5f9"/>
+                                    <rect id="thermo-liquid" x="-4" y="100" width="8" height="100" fill="#ef4444" rx="4" class="transition-all duration-300"/>
+                                    <circle cx="0" cy="210" r="14" fill="#ef4444"/>
+                                    <path d="M10 20 L15 20 M10 60 L15 60 M10 100 L15 100 M10 140 L15 140 M10 180 L15 180" stroke="#64748b" stroke-width="2"/>
+                                    <text x="-15" y="25" font-size="12" fill="#64748b" text-anchor="end">450K</text>
+                                    <text x="-15" y="105" font-size="12" fill="#64748b" text-anchor="end">300K</text>
+                                    <text x="-15" y="185" font-size="12" fill="#64748b" text-anchor="end">150K</text>
+                                </g>
+                                <path d="M150 30 L150 250 A 10 10 0 0 0 160 260 L240 260 A 10 10 0 0 0 250 250 L250 30" fill="none" stroke="#475569" stroke-width="6"/>
+                                <g stroke="#cbd5e1" stroke-width="2">
+                                    <line x1="250" y1="50" x2="260" y2="50"/><text x="265" y="54" font-size="12" fill="#64748b">45L</text>
+                                    <line x1="250" y1="100" x2="260" y2="100"/><text x="265" y="104" font-size="12" fill="#64748b">35L</text>
+                                    <line x1="250" y1="150" x2="260" y2="150"/><text x="265" y="154" font-size="12" fill="#64748b">25L</text>
+                                    <line x1="250" y1="200" x2="260" y2="200"/><text x="265" y="204" font-size="12" fill="#64748b">15L</text>
+                                </g>
+                                <rect id="gas-bg" x="153" y="100" width="94" height="157" fill="rgba(186, 230, 253, 0.3)"/>
+                                <g id="charles-particles-group"></g>
+                                <g id="piston-group" class="transition-transform duration-300">
+                                    <rect id="piston-head" x="153" y="80" width="94" height="20" fill="#cbd5e1" stroke="#475569" stroke-width="2" rx="2"/>
+                                    <rect id="weight" x="175" y="50" width="50" height="30" fill="#94a3b8" rx="3"/>
+                                    <text id="weight-text" x="200" y="70" font-size="12" fill="white" font-weight="bold" text-anchor="middle">1 atm</text>
+                                </g>
+                                <g transform="translate(150, 265)">
+                                    <rect x="0" y="0" width="100" height="40" fill="#e2e8f0" rx="5" stroke="#94a3b8" stroke-width="2"/>
+                                    <path id="heat-flame" d="M20 40 Q 50 -20 80 40 Z" fill="url(#fire-gradient)" opacity="0" class="glow-hot transition-opacity duration-300"/>
+                                    <path id="cold-ice" d="M10 0 L30 30 L50 10 L70 30 L90 0 Z" fill="url(#ice-gradient)" opacity="0" class="glow-cold transition-opacity duration-300"/>
+                                    <text x="50" y="25" font-size="14" font-weight="bold" fill="#64748b" text-anchor="middle" letter-spacing="2">裝置</text>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="font-bold text-slate-700">調整溫度 (T)</label>
+                                <span class="text-red-500 font-bold"><span id="temp-display">300</span> K</span>
+                            </div>
+                            <input type="range" id="temp-slider" min="150" max="450" step="1" value="300">
+                            <div class="flex justify-between text-xs text-slate-500 mt-1">
+                                <span>150 K (冷卻)</span><span>300 K (室溫)</span><span>450 K (加熱)</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+                            <div class="text-slate-600 font-medium">環境設定</div>
+                            <div class="flex space-x-2">
+                                <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">氣體：定量</span>
+                                <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded">壓力：1 atm</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <!-- 查理圖表區 -->
+                <section class="flex flex-col gap-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white rounded-2xl shadow-lg p-5 border-l-4 border-red-500 flex flex-col justify-center">
+                            <h3 class="text-slate-500 text-sm font-bold mb-1">絕對溫度 (T)</h3>
+                            <div class="flex items-end">
+                                <span id="meter-t-k" class="digital-font text-4xl text-red-500 mr-2">300</span><span class="text-slate-400 text-sm mb-1">K</span>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-1">攝氏：<span id="meter-t-c">27</span> °C</div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-lg p-5 border-l-4 border-blue-500 flex flex-col justify-center">
+                            <h3 class="text-slate-500 text-sm font-bold mb-1">氣體體積 (V)</h3>
+                            <div class="flex items-end">
+                                <span id="meter-charles-v" class="digital-font text-4xl text-blue-600 mr-2">30.0</span><span class="text-slate-400 text-sm mb-1">L</span>
+                            </div>
+                            <div class="text-xs text-blue-400 mt-1 flex items-center">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg> 自動膨脹/收縮
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 text-white rounded-2xl shadow-lg p-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-slate-300 text-xs font-bold">定律驗證 (V ÷ T = k)</h3>
+                            <div class="text-lg font-mono mt-1">
+                                <span id="calc-charles-v" class="text-blue-300">30.0</span> ÷ <span id="calc-charles-t" class="text-red-300">300</span> = <span id="calc-charles-k" class="text-yellow-400 font-bold text-2xl ml-2">0.100</span>
+                            </div>
+                        </div>
+                        <div class="text-right text-slate-400 text-sm">比值 k 應維持定值</div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-lg p-6 flex-1 min-h-[250px] flex flex-col">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">📊 V-T 關係圖 (體積-絕對溫度)</h3>
+                        <div class="relative w-full flex-1">
+                            <canvas id="vtChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- 路由切換邏輯 ---
+        let currentTab = 'home';
+        let isCharlesAnimRunning = false;
+        let animationFrameId;
+
+        function switchTab(tabId) {
+            // 隱藏所有視圖
+            document.getElementById('view-home').classList.add('hidden');
+            document.getElementById('view-boyle').classList.add('hidden');
+            document.getElementById('view-charles').classList.add('hidden');
+            
+            // 重置導覽按鈕樣式
+            document.getElementById('nav-home').className = "px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors";
+            document.getElementById('nav-boyle').className = "px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors";
+            document.getElementById('nav-charles').className = "px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors";
+
+            // 顯示目標視圖與設定 active 樣式
+            document.getElementById('view-' + tabId).classList.remove('hidden');
+            document.getElementById('nav-' + tabId).className = "px-3 py-2 rounded-md text-sm font-bold bg-slate-900 text-white transition-colors";
+
+            currentTab = tabId;
+
+            // 控制查理定律的動畫效能
+            if (tabId === 'charles') {
+                if (!isCharlesAnimRunning) {
+                    isCharlesAnimRunning = true;
+                    animateCharlesParticles();
+                }
+            } else {
+                isCharlesAnimRunning = false;
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            }
+        }
+
+        // === 波以耳定律相關變數與函數 ===
+        const BOYLE_K = 20; 
+        const BOYLE_MIN_V = 5;
+        const BOYLE_MAX_V = 40;
+        
+        const bSlider = document.getElementById('volume-slider');
+        const bSvg = document.getElementById('syringe-svg');
+        const bGasArea = document.getElementById('gas-area');
+        const bPlungerHead = document.getElementById('plunger-head');
+        const bPlungerRod = document.getElementById('plunger-rod');
+        const bPlungerHandle = document.getElementById('plunger-handle');
+        const bPlungerGroup = document.getElementById('plunger-group');
+        const bGaugeNeedle = document.getElementById('gauge-needle');
+        const bDragHint = document.getElementById('drag-hint');
+        const bParticlesGroup = document.getElementById('boyle-particles-group');
+        
+        let pvChart;
+        const bParticles = [];
+        
+        // 初始化波以耳粒子
+        for(let i=0; i<40; i++) {
+            let p = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            p.setAttribute("r", 2);
+            p.setAttribute("fill", "rgba(37, 99, 235, 0.7)");
+            bParticlesGroup.appendChild(p);
+            bParticles.push({el: p, rx: Math.random(), ry: Math.random()});
+        }
+
+        function initBoyleChart() {
+            const ctx = document.getElementById('pvChart').getContext('2d');
+            const data = [];
+            for(let v = BOYLE_MIN_V; v <= BOYLE_MAX_V; v += 1) {
+                data.push({ x: v, y: BOYLE_K / v });
+            }
+            pvChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: '等溫線 (P=k/V)', data: data, showLine: true, borderColor: '#9ca3af', borderDash: [5, 5], pointRadius: 0, tension: 0.4 },
+                        { label: '目前狀態', data: [{x: 20, y: 1}], backgroundColor: '#ef4444', borderColor: '#ef4444', pointRadius: 8, pointBorderColor: 'white', pointBorderWidth: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: { duration: 100 },
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: '體積 V (mL)'}, min: 0, max: 45 },
+                        y: { title: { display: true, text: '壓力 P (atm)' }, min: 0, max: 5 }
+                    }
+                }
+            });
+        }
+
+        function updateBoyle(volume) {
+            volume = parseFloat(volume);
+            const pressure = BOYLE_K / volume;
+            const k_val = pressure * volume;
+
+            document.getElementById('volume-display').innerText = volume.toFixed(1);
+            document.getElementById('meter-v').innerText = volume.toFixed(1);
+            document.getElementById('meter-p').innerText = pressure.toFixed(2);
+            document.getElementById('calc-p').innerText = pressure.toFixed(2);
+            document.getElementById('calc-v').innerText = volume.toFixed(1);
+            document.getElementById('calc-k').innerText = Math.round(k_val).toFixed(1);
+
+            const gasWidth = volume * 6; 
+            bGasArea.setAttribute('width', gasWidth);
+            bPlungerHead.setAttribute('x', 52 + gasWidth);
+            bPlungerRod.setAttribute('x', 67 + gasWidth);
+            bPlungerHandle.setAttribute('x', 67 + gasWidth + 180 - 15);
+            if (bDragHint) bDragHint.setAttribute('x', 67 + gasWidth + 90);
+
+            const angle = -90 + (pressure / 5) * 270;
+            bGaugeNeedle.setAttribute('transform', `rotate(${angle} 30 45)`);
+
+            bParticles.forEach(p => {
+                p.el.setAttribute("cx", 52 + p.rx * gasWidth);
+                p.el.setAttribute("cy", 37 + p.ry * 76);
+            });
+
+            if (pvChart) {
+                pvChart.data.datasets[1].data = [{ x: volume, y: pressure }];
+                pvChart.update();
+            }
+        }
+
+        // 波以耳拖曳邏輯
+        let isBDragging = false, startBX = 0, startBVol = 0;
+        function getClientX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+        
+        bPlungerGroup.addEventListener('mousedown', (e) => { isBDragging = true; startBX = getClientX(e); startBVol = parseFloat(bSlider.value); if(bDragHint) bDragHint.style.display='none'; });
+        bPlungerGroup.addEventListener('touchstart', (e) => { isBDragging = true; startBX = getClientX(e); startBVol = parseFloat(bSlider.value); if(bDragHint) bDragHint.style.display='none'; }, {passive: true});
+        
+        window.addEventListener('mousemove', (e) => {
+            if (!isBDragging || currentTab !== 'boyle') return;
+            const deltaX = (getClientX(e) - startBX) * (450 / bSvg.getBoundingClientRect().width);
+            let newVol = Math.max(BOYLE_MIN_V, Math.min(BOYLE_MAX_V, startBVol + (deltaX / 6)));
+            bSlider.value = newVol;
+            updateBoyle(newVol);
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (!isBDragging || currentTab !== 'boyle') return;
+            if (e.cancelable) e.preventDefault();
+            const deltaX = (getClientX(e) - startBX) * (450 / bSvg.getBoundingClientRect().width);
+            let newVol = Math.max(BOYLE_MIN_V, Math.min(BOYLE_MAX_V, startBVol + (deltaX / 6)));
+            bSlider.value = newVol;
+            updateBoyle(newVol);
+        }, {passive: false});
+        
+        window.addEventListener('mouseup', () => isBDragging = false);
+        window.addEventListener('touchend', () => isBDragging = false);
+        
+        bSlider.addEventListener('input', (e) => updateBoyle(e.target.value));
+
+        // === 查理定律相關變數與函數 ===
+        const CHARLES_K = 0.1;
+        const C_BASE_Y = 275;
+        const C_PIX_PER_L = 5;
+        
+        const cSlider = document.getElementById('temp-slider');
+        const cGasBg = document.getElementById('gas-bg');
+        const cPistonGroup = document.getElementById('piston-group');
+        const cThermoLiquid = document.getElementById('thermo-liquid');
+        const cHeat = document.getElementById('heat-flame');
+        const cCold = document.getElementById('cold-ice');
+        const cParticlesGroup = document.getElementById('charles-particles-group');
+        
+        let vtChart;
+        let cVol = 30, cTemp = 300;
+        const cParticles = [];
+        
+        // 初始化查理粒子
+        for(let i=0; i<60; i++) {
+            let p = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            p.setAttribute("r", 3);
+            p.setAttribute("fill", "#0ea5e9");
+            cParticlesGroup.appendChild(p);
+            cParticles.push({ el: p, x: 155 + Math.random()*90, y: 150 + Math.random()*105, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2 });
+        }
+
+        function initCharlesChart() {
+            const ctx = document.getElementById('vtChart').getContext('2d');
+            vtChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: '理論線 (V=kT)', data: [{x:0, y:0}, {x:150, y:15}, {x:450, y:45}], showLine: true, borderColor: '#cbd5e1', borderDash: [5, 5], pointRadius: 0, tension: 0 },
+                        { label: '目前狀態', data: [{x: 300, y: 30}], backgroundColor: '#ef4444', borderColor: '#ef4444', pointRadius: 8, pointBorderColor: 'white', pointBorderWidth: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: { duration: 100 },
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: '絕對溫度 T (K)'}, min: 0, max: 500 },
+                        y: { title: { display: true, text: '體積 V (L)' }, min: 0, max: 55 }
+                    }
+                }
+            });
+        }
+
+        function updateCharles(tempK) {
+            cTemp = parseFloat(tempK);
+            cVol = CHARLES_K * cTemp;
+
+            document.getElementById('temp-display').innerText = cTemp;
+            document.getElementById('meter-t-k').innerText = cTemp;
+            document.getElementById('meter-t-c').innerText = Math.round(cTemp - 273.15);
+            document.getElementById('meter-charles-v').innerText = cVol.toFixed(1);
+            document.getElementById('calc-charles-v').innerText = cVol.toFixed(1);
+            document.getElementById('calc-charles-t').innerText = cTemp;
+            document.getElementById('calc-charles-k').innerText = (cVol/cTemp).toFixed(3);
+
+            const pistonY = C_BASE_Y - (cVol * C_PIX_PER_L);
+            cPistonGroup.setAttribute('transform', `translate(0, ${pistonY - 80})`);
+            cGasBg.setAttribute('y', pistonY + 20);
+            cGasBg.setAttribute('height', Math.max(0, 255 - (pistonY + 20)));
+
+            const liqHeight = 20 + ((cTemp - 150) / 300) * 160;
+            cThermoLiquid.setAttribute('y', 200 - liqHeight);
+            cThermoLiquid.setAttribute('height', liqHeight);
+
+            if (cTemp > 300) {
+                cHeat.setAttribute('opacity', (cTemp - 300) / 150);
+                cCold.setAttribute('opacity', 0);
+            } else if (cTemp < 300) {
+                cCold.setAttribute('opacity', (300 - cTemp) / 150);
+                cHeat.setAttribute('opacity', 0);
+            } else {
+                cHeat.setAttribute('opacity', 0);
+                cCold.setAttribute('opacity', 0);
+            }
+
+            const r = Math.min(255, Math.max(0, Math.round((cTemp - 200) * 1.5)));
+            const b = Math.min(255, Math.max(0, Math.round((400 - cTemp) * 1.5)));
+            const pColor = `rgb(${r}, 100, ${b})`;
+            cParticles.forEach(p => p.el.setAttribute('fill', pColor));
+
+            if (vtChart) {
+                vtChart.data.datasets[1].data = [{ x: cTemp, y: cVol }];
+                vtChart.update();
+            }
+        }
+
+        function animateCharlesParticles() {
+            if (!isCharlesAnimRunning) return;
+            
+            const speed = Math.sqrt(cTemp / 300) * 1.5;
+            const ceilingY = C_BASE_Y - (cVol * C_PIX_PER_L) + 23; 
+
+            cParticles.forEach(p => {
+                p.x += p.vx * speed;
+                p.y += p.vy * speed;
+
+                if (p.x <= 158 || p.x >= 242) { p.vx *= -1; p.x = Math.max(158, Math.min(242, p.x)); }
+                if (p.y >= 252) { p.vy *= -1; p.y = 252; }
+                if (p.y <= ceilingY) { p.vy = Math.abs(p.vy); p.y = ceilingY; }
+
+                p.el.setAttribute("cx", p.x);
+                p.el.setAttribute("cy", p.y);
+            });
+
+            animationFrameId = requestAnimationFrame(animateCharlesParticles);
+        }
+
+        cSlider.addEventListener('input', (e) => updateCharles(e.target.value));
+
+        window.onload = () => {
+            initBoyleChart();
+            updateBoyle(bSlider.value);
+            
+            initCharlesChart();
+            updateCharles(cSlider.value);
+            
+            // 預設顯示首頁
+            switchTab('home');
+        };
+
+    </script>
+</body>
+</html>
